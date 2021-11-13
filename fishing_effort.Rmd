@@ -36,7 +36,9 @@ num_rows_lost
 
 ```{r}
 # compare the amount and identity of countries in the raw data to the amount and identiity of the countries in the subset
-unique(data$flag_gfw)
+num_countries_raw = (unique(data$flag_gfw))
+num_countries_raw
+
 unique(data_2019_2020$flag_gfw)
 ```
 2019 Fishing Effort Data
@@ -44,7 +46,7 @@ unique(data_2019_2020$flag_gfw)
 ```{r}
 data_2019_country <- aggregate(data_2019_2020$fishing_hours_2019, by=list(country=data_2019_2020$flag_gfw), FUN=sum)
 
-max_country_2019 = data_2019_2020_country %>% 
+max_country_2019 = data_2019_country %>% 
   filter(x == 16580833.42)
 
 country_graph <- ggplot(data_2019_country, aes(x = country, y = x)) +
@@ -61,8 +63,8 @@ data_2020_country <- aggregate(data_2019_2020$fishing_hours_2020, by=list(countr
 
 max(data_2020_country$x)
 
-max_country_2020 = data_2019_2020_country %>% 
-  filter(x == 15904523)
+max_country_2020 = data_2020_country %>% 
+  filter(x == 15904523.46)
 
 max_country_2020
 
@@ -72,7 +74,34 @@ country_graph <- ggplot(data_2020_country, aes(x = country, y = x)) +
 country_graph
 ```
 
+Boat Data
 
+```{r}
+#unique(data$vessel_class_registry)
+# there's a lot of types, and many rows have multiple suggestions for the boat(s) types
+
+boat_data <- data %>% 
+  filter( vessel_class_registry == c('trawlers', 'tuna_purse_seines', 'fishing'))
+
+# tonnage by country
+boat_tonnage_country <- aggregate(boat_data$tonnage_gt_gfw, by=list(country=boat_data$flag_gfw), FUN=mean)
+
+max(boat_tonnage_country$x, na.rm = TRUE)
+
+min(boat_tonnage_country$x, na.rm = TRUE)
+
+boat_tonnage_country_max = boat_tonnage_country %>% 
+  filter(x == 4407)
+# country VCT: Saint Vincent and the Grenadines ?
+
+boat_tonnage_country_min = boat_tonnage_country %>% 
+  filter(x == 28.96)
+# country SVN: slovenia
+```
+
+```{r}
+
+```
 
 
 
