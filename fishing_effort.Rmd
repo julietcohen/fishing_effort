@@ -27,11 +27,68 @@ nrow_raw
 data_2019_2020 <- data %>% 
   filter(fishing_hours_2019 != "NA" & fishing_hours_2020 != "NA")
 
+nrow_2019_2020 = nrow(data_2019_2020)
+nrow_2019_2020
+
+num_rows_lost = nrow_raw - nrow_2019_2020
+num_rows_lost
 ```
 
 ```{r}
 # compare the amount and identity of countries in the raw data to the amount and identiity of the countries in the subset
-unique(data$flag_registry)
-unique(data_2019_2020$flag_registry)
+unique(data$flag_gfw)
+unique(data_2019_2020$flag_gfw)
 ```
+2019 Fishing Effort Data
+
+```{r}
+data_2019_country <- aggregate(data_2019_2020$fishing_hours_2019, by=list(country=data_2019_2020$flag_gfw), FUN=sum)
+
+max_country_2019 = data_2019_2020_country %>% 
+  filter(x == 16580833.42)
+
+country_graph <- ggplot(data_2019_country, aes(x = country, y = x)) +
+  geom_point()
+
+country_graph
+
+```
+
+2020 Fishing Effort Data
+
+```{r}
+data_2020_country <- aggregate(data_2019_2020$fishing_hours_2020, by=list(country=data_2019_2020$flag_gfw), FUN=sum)
+
+max(data_2020_country$x)
+
+max_country_2020 = data_2019_2020_country %>% 
+  filter(x == 15904523)
+
+max_country_2020
+
+country_graph <- ggplot(data_2020_country, aes(x = country, y = x)) +
+  geom_point()
+
+country_graph
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
