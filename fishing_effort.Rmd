@@ -146,7 +146,7 @@ lm_data_12_19 = effort_trends %>%
 
 ```
 
-```{r}
+```{r effort trend datasets}
 effort_trends <- data %>% 
   select(flag_gfw, 
          fishing_hours_2012,
@@ -196,9 +196,36 @@ effort_trends_tidy_no_na = effort_trends %>%
                values_to = "mean_effort") %>% 
   filter(!is.na(mean_effort))
 
+loop_data <- effort_trends_tidy_no_na %>% 
+  filter(flag_gfw != "CHE" & flag_gfw != "CYM" & flag_gfw != "CZE" & flag_gfw != "DJI" & flag_gfw != "GNB" & flag_gfw != "JOR" & flag_gfw != "LSO" & flag_gfw != "NGA" & flag_gfw != "NIU" & flag_gfw != "TCD" & flag_gfw != "TON" & flag_gfw != "TUN" & flag_gfw != "WLF")
+
+unique(loop_data$flag_gfw)
+
+single_val_countries
+
+#loop_data <- effort_trends_tidy_no_na %>% 
+#  filter(flag_gfw != "CHE" "CYM" "CZE" "DJI" "GNB" "JOR" "LSO" "NGA" "NIU" "TCD" "TON" "TUN" "WLF")
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+
+
 total_mean_effort <- effort_trends_tidy_no_na %>% 
   group_by(flag_gfw) %>% 
   summarize(mean_effort = mean(mean_effort))
+
+
 
 #check  
 #sum_abw = (276.0000 + 284.1200 + 188.3600 + 90.8600) / 4
@@ -284,13 +311,66 @@ effort_by_country(effort_trends_tidy_no_na, flag_gfw, year, mean_effort)
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
 ```{r}
+# make model of just first country if the datasets list to see if the for loop worked
+
+
+
+```
+
+
+
+
+```{r}
+# check the number of outputs 
 for (i in (seq_along(unique(effort_trends_tidy_w_na$flag_gfw)))) {
     model_summary <- summary(lm(mean_effort ~ year, data = effort_trends_tidy_w_na))
-    #summary <- summary(model[i])
-    print(model_summary)
+    # <- model_summary[i])
+    print(paste(("The linear model for ", model_summary))
   }
 ```
+
+
+```{r for loop}
+# this loop appears to output the unique lm summary for all unique countries in the dataset
+
+country = unique(loop_data$flag_gfw)
+country
+
+for (i in 1:length(country)) {
+  subset_data <- subset(loop_data, flag_gfw == country[i])
+  model_summary <- summary(lm(mean_effort ~ year, data = subset_data))
+  print(model_summary)
+}
+
+```
+```{r}
+# find the names of the countries that only occur once in the data
+single_val_countries = names(which(table(effort_trends_tidy_no_na$flag_gfw) == 1))
+single_val_countries
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 Focus on top 5 fishing countries in world: China, India, Indonesia, Peru, USA
