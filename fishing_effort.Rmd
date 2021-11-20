@@ -100,12 +100,241 @@ boat_tonnage_country_min = boat_tonnage_country %>%
 ```
 
 ```{r}
+diff_19_20 <- data_2019_2020 %>% 
+  mutate(diff_19_20 = fishing_hours_2020 - fishing_hours_2019)
+
+# order datasets by max inc in fishing hours 
+diff_19_20_ordered <- diff_19_20[order(diff_19_20$diff_19_20, decreasing = TRUE), ]
+head(diff_19_20_ordered$diff_19_20)
+tail(diff_19_20_ordered$diff_19_20)
+head(diff_19_20_ordered$flag_gfw)
+tail(diff_19_20_ordered$flag_gfw)
+```
+
+```{r}
+# look at trends from 2012-2019 in fishing effort & extrapolate into 2020
+
+effort_trends <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  group_by(flag_gfw) %>% 
+  summarize(mean_12 = mean(fishing_hours_2012, na.rm = TRUE),
+            mean_13 = mean(fishing_hours_2013, na.rm = TRUE),
+            mean_14 = mean(fishing_hours_2014, na.rm = TRUE),
+            mean_15 = mean(fishing_hours_2015, na.rm = TRUE),
+            mean_16 = mean(fishing_hours_2016, na.rm = TRUE),
+            mean_17 = mean(fishing_hours_2017, na.rm = TRUE),
+            mean_18 = mean(fishing_hours_2012, na.rm = TRUE),
+            mean_19 = mean(fishing_hours_2012, na.rm = TRUE),
+            mean_20 = mean(fishing_hours_2020, na.rm = TRUE))
+
+lm_data_12_19 = effort_trends %>% 
+  select(flag_gfw, mean_12:mean_19) %>% 
+  filter(mean_12 != "NaN", mean_13 != "NaN", mean_14 != "NaN", mean_15 != "NaN", mean_16 != "NaN", mean_17 != "NaN", mean_18 != "NaN", mean_19 != "NaN")
+           
+#lm_data_12_19 = effort_trends %>% 
+#  select(flag_gfw, mean_12:mean_19) %>% 
+#  filter((mean_12:mean_19) != "NaN")
+
+```
+
+```{r}
+effort_trends <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  group_by(flag_gfw) %>% 
+  summarize("12" = mean(fishing_hours_2012, na.rm = TRUE),
+            "13" = mean(fishing_hours_2013, na.rm = TRUE),
+            "14" = mean(fishing_hours_2014, na.rm = TRUE),
+            "15" = mean(fishing_hours_2015, na.rm = TRUE),
+            "16" = mean(fishing_hours_2016, na.rm = TRUE),
+            "17" = mean(fishing_hours_2017, na.rm = TRUE),
+            "18" = mean(fishing_hours_2012, na.rm = TRUE),
+            "19" = mean(fishing_hours_2012, na.rm = TRUE),
+            "20" = mean(fishing_hours_2020, na.rm = TRUE))
+
+unique(effort_trends$flag_gfw)
+
+effort_trends_tidy_w_na = effort_trends %>%
+  select(flag_gfw, "12":"19") %>% 
+  pivot_longer(cols = ("12":"19"),
+               names_to = "year",
+               values_to = "mean_effort")
+
+# lm_data_prep = effort_trends %>% 
+#   select(flag_gfw, mean_12:mean_19) %>% 
+#   rename("12" = mean_12,
+#          "13" = mean_13,
+#          "14" = mean_14,
+#          "15" = mean_15,
+#          "16" = mean_16,
+#          "17" = mean_17,
+#          "18" = mean_18,
+#          "19" = mean_19) %>%
+#   filter("12" != "NaN", "13" != "NaN", "14" != "NaN", "15" != "NaN", "16" != "NaN", "17" != "NaN", "18" != "NaN", "19" != "NaN")
+
+effort_trends_tidy_no_na = effort_trends %>%
+  select(flag_gfw, "12":"19") %>% 
+  pivot_longer(cols = ("12":"19"),
+               names_to = "year",
+               values_to = "mean_effort") %>% 
+  filter(!is.na(mean_effort))
+
+total_mean_effort <- effort_trends_tidy_no_na %>% 
+  group_by(flag_gfw) %>% 
+  summarize(mean_effort = mean(mean_effort))
+
+#check  
+#sum_abw = (276.0000 + 284.1200 + 188.3600 + 90.8600) / 4
+
+#%>%
+#  filter("12" != "NaN", "13" != "NaN", "14" != "NaN", "15" != "NaN", "16" != "NaN", "17" != "NaN", "18" != #"NaN", "19" != "NaN")
+
+# make the data tidy so we can run a linear model
+#lm_data_12_19_tidy <- lm_data_prep %>% 
+#  pivot_longer(cols = ("12":"19"),
+#               names_to = "year",
+#               values_to = "mean_effort")
+```
+
+
+```{r}
+class(lm_data_12_19$flag_gfw)
+class(lm_data_12_19$mean_12)
+
+#class(mpg$hwy)
+#class(mpg$year)
+#class(mpg$displ)
+```
+
+
+```{r}
+# make a linear model for 12-19
+
+greece_12_19 <- effort_trends_tidy_no_na %>% 
+  filter(flag_gfw == "GRC")
+
+greece_model <-lm(mean_effort ~ year, data = greece_12_19)
+summary(greece_model)
+```
+```{r}
+#greece_12_19_raw_data <- data %>% 
+#  filter(flag_gfw == "GRC")
+
+greece_model <-lm(mean_effort ~ year, data = greece_12_19)
+summary(greece_model)
+```
+
+
+```{r}
+abw_data <- effort_trends_tidy_w_na %>% 
+  filter(flag_gfw == "ABW")
+
+# test lm model with NA's
+abw_model = lm(mean_effort ~ year, data = abw_data)
+summary(abw_model)
+```
+```{r}
+ggplot(abw_data, aes(x = year, y = mean_effort)) +
+  geom_point()
+```
+
+```{r}
 
 ```
 
 
+```{r}
+# make for loop to find lm for each country for all years available 12-19, then compare to what they actually fished in 2020!
+
+effort_by_country <- function(effort_trends_tidy_no_na) {
+  for (i in 1:ncol()) {
+    col_mean <- mean(df[[i]])
+    col_name <- colnames(df[i])
+    print(paste("The mean of column", col_name, "is", col_mean))
+  }
+}
+
+effort_by_country <- function(df, cat_col, time_col, num_col) {
+  for (i in (seq_along(unique(df$cat_col)))) {
+    model <-lm(num_col ~ time_col, data = df)
+    summary <- summary(model)
+    country <- cat_col[i]
+    print(paste("The linear model of ", country, "is", summary))
+  }
+}
+
+effort_by_country(effort_trends_tidy_no_na, flag_gfw, year, mean_effort)
 
 
+```
+```{r}
+for (i in (seq_along(unique(effort_trends_tidy_w_na$flag_gfw)))) {
+    model_summary <- summary(lm(mean_effort ~ year, data = effort_trends_tidy_w_na))
+    #summary <- summary(model[i])
+    print(model_summary)
+  }
+```
+
+
+Focus on top 5 fishing countries in world: China, India, Indonesia, Peru, USA
+
+```{r}
+top_5 <- data %>% 
+  filter(flag_gfw == c("CHN", "IND", "IDN", "PER", "USA")) %>% 
+  aggregate(c("fishing_hours_2012", "fishing_hours_2013", "fishing_hours_2014", "fishing_hours_2015", "fishing_hours_2016", "fishing_hours_2017", "fishing_hours_2018", "fishing_hours_2019", "fishing_hours_2020"), by = flag_gfw, fun = sum())
+         
+#| flag_registry == c("CHN", "IND", "IDN", "PER", "USA") | flag_ais == c("CHN", "IND", "IDN", "PER", "USA")) %>% 
+```
+```{r}
+top_5 <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  filter(flag_gfw == c("CHN", "IND", "IDN", "PER", "USA")) %>% 
+  group_by(flag_gfw) %>% 
+  summarize(total_hours = sum(fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020, na.rm = TRUE))
+```
+```{r}
+
+```
+
+
+```{r}
+#china <- total_mean_effort %>% 
+#  filter(flag_gfw == "CHN")
+```
 
 
 
