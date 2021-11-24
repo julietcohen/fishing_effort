@@ -1,0 +1,234 @@
+---
+title: "for_loop_lm"
+author: "Juliet"
+date: "11/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(broom)
+```
+
+```{r}
+data = read_csv(here('data', 'fishing-vessels-v2.csv'))
+
+nrow_raw = nrow(data)
+nrow_raw
+```
+
+Look at the countries in this dataset as well as summary stats for fishing hours in 2020
+
+```{r}
+raw_countries = unique(data$flag_gfw)
+raw_countries
+```
+Look at fishing effort by country in 2020 and the min and max effort by country
+```{r}
+fishing_eff_20 <- data %>% 
+  filter(fishing_hours_2020 != "NA")
+
+fishing_eff_20_country <- aggregate(fishing_eff_20$fishing_hours_2020, by = list(country=fishing_eff_20$flag_gfw), FUN=sum) %>% 
+  mutate(fishing_hours = x) %>% 
+  select(country, fishing_hours)
+
+# max value of fishing hours in 2020 by 1 country:
+max_hrs_20 <- max(fishing_eff_20_country$fishing_hours)
+min_hrs_20 <- min(fishing_eff_20_country$fishing_hours)
+
+min_max_country_2020 = fishing_eff_20_country %>% 
+  filter(fishing_hours == max_hrs_20 | fishing_hours == min_hrs_20)
+min_max_country_2020 #CHN, JAM
+
+country_graph <- ggplot(fishing_eff_20_country, aes(x = country, y = fishing_hours)) +
+  geom_point()
+
+country_graph
+```
+
+Look at the difference in fishing hours from 2019-2020 by country
+
+```{r}
+# filter the data to only include country, fishing hours for 19-20, and the diff btw those years
+data_2019_2020 <- data %>% 
+  select(flag_gfw, fishing_hours_2019, fishing_hours_2020) %>% 
+  filter(fishing_hours_2019 != "NA" & fishing_hours_2020 != "NA") %>% 
+  mutate(diff_19_20 = fishing_hours_2020 - fishing_hours_2019)
+
+# aggregate difference in hours by country
+
+change_effort_19_20 <- aggregate(data_2019_2020$diff_19_20, by = list(country=data_2019_2020$flag_gfw), FUN=sum) %>%
+  mutate(fishing_hours_change = x) %>% 
+  select(country, fishing_hours_change)
+
+# which countries changed their effort the most and least from 19 --> 20?
+
+max_change_eff <- max(data_2019_2020$diff_19_20)
+min_change_eff <- min(data_2019_2020$diff_19_20)
+
+min_max_change_eff = data_2019_2020 %>% 
+  filter(diff_19_20 == max_change_eff | diff_19_20 == min_change_eff)
+min_max_change_eff
+
+# max change = China: +6411.61 hours from 20129 --> 2020
+# min change = Taiwan: - 6637.94 hours from 2019 --> 2020
+```
+Take the mean of fishing hours by year, sorted by country, removing all NA values
+```{r}
+effort_trends <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  group_by(flag_gfw) %>% 
+  summarize("2012" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2013" = mean(fishing_hours_2013, na.rm = TRUE),
+            "2014" = mean(fishing_hours_2014, na.rm = TRUE),
+            "2015" = mean(fishing_hours_2015, na.rm = TRUE),
+            "2016" = mean(fishing_hours_2016, na.rm = TRUE),
+            "2017" = mean(fishing_hours_2017, na.rm = TRUE),
+            "2018" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2019" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2020" = mean(fishing_hours_2020, na.rm = TRUE))
+
+# change it to tidy format, and remove all NA values, and take out the year 2020 because we want to compare what we would EXPECT in 2020 based on what we saw in 2012-2019
+
+effort_trends_tidy_no_na = effort_trends %>%
+  select(flag_gfw, "2012":"2019") %>% 
+  pivot_longer(cols = ("2012":"2019"),
+               names_to = "year",
+               values_to = "mean_effort") %>% 
+  filter(!is.na(mean_effort))
+
+# prepare the data for the linear regressions on each country by removing all countries that only have 1 year entry, because we need at least 2 years of mean fishing effort to establish a linear model
+
+# which countries only have data for 1 year?
+
+single_yr_countries <- effort_trends_tidy_no_na %>%
+    group_by(flag_gfw) %>%
+    filter(n() == 1)
+single_yr_countries
+
+# remove those countries from the dataframe before running the linear model
+
+loop_data <- effort_trends_tidy_no_na %>% 
+  filter(flag_gfw != "CHE" & flag_gfw != "CYM" & flag_gfw != "CZE" & flag_gfw != "DJI" & flag_gfw != "GNB" & flag_gfw != "JOR" & flag_gfw != "LSO" & flag_gfw != "NGA" & flag_gfw != "NIU" & flag_gfw != "TCD" & flag_gfw != "TON" & flag_gfw != "TUN" & flag_gfw != "WLF")
+```
+
+Run a linear regression on one country as a test, to see if returns what we would expect
+```{r}
+abw_data <- loop_data %>% 
+  filter(flag_gfw == "ABW")
+
+# test lm model with NA's
+abw_model = lm(mean_effort ~ year, data = abw_data)
+summary(abw_model)
+```
+
+
+Program a for loop to run a linear regression on each country with at least 2 years of data from 
+```{r loop with years as categories}
+# make a list of all unique countries in the flag_gfw column because we want to run a linear regression on each country, not on each row
+
+country = unique(loop_data$flag_gfw)
+
+# run the linear regression as a loop on each country
+
+for (i in 1:length(country)) {
+  subset_data <- subset(loop_data, flag_gfw == country[i])
+  model_summary <- summary(lm(mean_effort ~ year, data = subset_data))
+  print(model_summary)
+}
+```
+Adjust the linear model to run a regression over **time** by country, but first test the process on just one country
+
+```{r}
+# run a test on just one country
+abw_data <- abw_data %>% 
+  mutate(year = as.Date(year, format = "%Y"))
+# note sure why this function set a day as 11/23 for each year, but I can fix that later
+
+# test lm model with NA's
+abw_model = lm(mean_effort ~ year, data = abw_data)
+summary(abw_model)
+
+# plot Aruba's fishing effort from 2012-2019 with the fitted line on top of the raw data
+ggplot(data = abw_data, aes(x = year, y = mean_effort, color = year)) +
+  geom_point() +
+  geom_line(data = augment(abw_model), aes(y = .fitted, color = year)) + 
+  labs(x = "Year",
+       y = "Mean Fishing Hours")
+```
+```{r}
+# predict Aruba's fishing hours in 2019 and 2020
+# the formula is: fishing_hours = 3229.86486 + (-0.17823)*(year)
+
+# create a new column to hold the model's predicted values for Aruba's fishing hours for 2012-2019, just to check out how the predict function's outputs compare to the actual values
+abw_predict <- abw_data %>% 
+  mutate(predict = predict(abw_model))
+
+# create a new dataframe for the next years for which we want to predict
+abw_newdata <- data.frame(predict_year = c("2019-11-23", "2020-11-23")) %>%
+  mutate(predict_year = as.Date(predict_year, format = "%Y"),
+         predict_year = as.factor(predict_year))
+
+#class(abw_newdata$predict_year)
+
+# use the predict() function to plug in the year 2019 & 2020
+
+#abw_newdata_w_predict <- abw_newdata %>% 
+#  mutate(predict_fish_eff = predict(abw_model, newdata = predict_year))
+
+#abw_newdata$predict_fishing_hours = predict(abw_model, newdata = abw_newdata)
+
+predict_fish_eff <- predict(abw_model, abw_newdata)
+```
+
+
+
+```{r}
+# format the year column for the full loop data to be a date
+loop_data <- loop_data %>% 
+  mutate(year = as.Date(year, format = "%Y"))
+```
+
+
+```{r loop with years as dates}
+
+for (i in 1:length(country)) {
+  subset_data <- subset(loop_data, flag_gfw == country[i])
+  model_summary <- summary(lm(mean_effort ~ year, data = subset_data))
+  print(model_summary)
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
