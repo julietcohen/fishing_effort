@@ -16,6 +16,7 @@ library(janitor)
 library(lubridate)
 library(broom)
 library(forecast)
+library(purrr)
 ```
 
 ```{r}
@@ -156,7 +157,7 @@ for (i in 1:length(country)) {
 ```
 Adjust the linear model to run a regression over **time** by country, but first test the process on just one country
 
-```{r}
+```{r as date}
 # run a test on just one country
 abw_data <- abw_data %>%
   mutate(year = as.Date(year, format = "%Y"))
@@ -209,7 +210,38 @@ abw_arima
 
 abw_forecast <- forecast(abw_arima, h=5)
 abw_forecast
+# this outputs a predicted value of ~67 fishing hours for the next 5 time periods, but this is not exactly what we want, because we want to use a linear model to predict different values for each future year, so either we did not use the right order = c(0,1,1) or we need to just find a way to plug in the next time periods to the linear model we output from the for loop
 ```
+
+Return to the idea of trying to plug in 1-3 time period increases into the linear model output for each country:
+
+```{r}
+# rearraneg the model so that you're taking the summary of the lm model, so the summary is the object abw_model
+abw_model = summary(lm(mean_effort ~ year, data = abw_data))
+abw_model
+
+#point_est_m_f = model_m_f$coefficients[,"Estimate"]
+#SE_m_f = model_m_f$coefficients[,"Std. Error"]
+
+abw_estimates = abw_model$coefficients[,"Estimate"]
+abw_estimates[1]
+abw_estimates[2]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,21 +253,108 @@ loop_data <- loop_data %>%
 
 
 ```{r loop with years as dates}
-
+# This loop manually combines the intercept and the slope coefficient into a linear equation and prints the predicted fishing hours for that country. The only adjustment I need to make is figuring out how to make the loop run for each country rather than each row.
 for (i in 1:length(country)) {
   subset_data <- subset(loop_data, flag_gfw == country[i])
   model_summary <- summary(lm(mean_effort ~ year, data = subset_data))
-  print(model_summary)
+  print(loop_data$flag_gfw[i])
+  print(model_summary$coefficients[,"Estimate"][1])
+  print(model_summary$coefficients[,"Estimate"][2])
+  print(paste0("In 2 years, the predicted fishing hours for ", loop_data$flag_gfw[i], " is ", (model_summary$coefficients[,"Estimate"][1]) + (model_summary$coefficients[,"Estimate"][2])*(2)))
+}
+```
+
+```{r}
+# try to get the loop to run for each country rather than each row
+
+country = unique(loop_data$flag_gfw)
+
+loop_data_factor = loop_data %>% 
+  mutate(flag_gfw = as.factor(flag_gfw))
+
+class(loop_data$flag_gfw)
+class(loop_data_factor$flag_gfw)
+
+for (i in 1:length(loop_data_factor)) {
+  subset_data <- subset(loop_data, group_by(loop_data_factor$flag_gfw[i]))
+  model_summary <- summary(lm(mean_effort ~ year, data = subset_data))
+  print(loop_data$flag_gfw[i])
+  print(model_summary$coefficients[,"Estimate"][1])
+  print(model_summary$coefficients[,"Estimate"][2])
+  print(paste0("In 2 years, the predicted fishing hours for ", loop_data$flag_gfw[i], " is ", (model_summary$coefficients[,"Estimate"][1]) + (model_summary$coefficients[,"Estimate"][2])*(1)))
+}
+```
+
+```{r}
+countries_list = split(loop_data, loop_data$flag_gfw)
+#countries_list
+
+for (i in 1:length(countries_list)) {
+  countries_df[i] <- as.data.frame(countries_list[i])
 }
 
+countries_list[2]
+class(countries_list[2])
+
+for (i in 1:length(countries_list)) {
+  subset_data[i] <- countries_list[i]
+  model_summary <- summary(lm(mean_effort ~ year, data = subset_data[i]))
+  print(loop_data$flag_gfw[i])
+  print(model_summary$coefficients[,"Estimate"][1])
+  print(model_summary$coefficients[,"Estimate"][2])
+  print(paste0("In 2 years, the predicted fishing hours for ", loop_data$flag_gfw[i], " is ", (model_summary$coefficients[,"Estimate"][1]) + (model_summary$coefficients[,"Estimate"][2])*(2)))
+}
+```
+
+```{r}
+#map(country_list, ~lm(mean_effort ~ year, data = country_list))
+```
+
+```{r}
+#countries_list_env <- list2env(countries_list, envir = .GlobalEnv)
+#countries_list_env[2]
+```
+
+```{r}
+#countries_df <- lapply(countries_list, as.data.frame(countries_list))
+```
+
+```{r}
+abw_model
+
+ago_data <- loop_data %>% 
+  filter(flag_gfw == "AGO")
+
+ago_model = lm(mean_effort ~ year, data = ago_data)
+summary(ago_model)
 ```
 
 
+```{r}
+models <- sapply(unique(as.character(loop_data$flag_gfw)),
+                 function(country)lm(mean_effort~year, loop_data, subset = (flag_gfw == country)),
+                 simplify = FALSE, USE.NAMES = TRUE)
+models[["ABW"]]
+#models[["ABW"]]$coefficients
+# to summarize all the models
+countries_lm_summaries <- lapply(models, summary)
+countries_lm_summaries[1]
+abw_summary <- countries_lm_summaries[1]
+abw_summary$coefficients[,"Estimate"][2]
+```
 
-
-
-
-
+```{r}
+prediction_data = NULL;
+for (i in 1:length(countries_lm_summaries)) {
+  one_country_summary <- countries_lm_summaries[i]
+  print(one_country_summary)
+  intercept <- one_country_summary$coefficients[,"Estimate"][1]
+  slope <- one_country_summary$coefficients[,"Estimate"][2]
+  effort_1_year_after <- intercept + slope*1
+  #print(paste0("In 2 years, the predicted fishing hours in 2 years is ", (intercept + slope*2)))
+  prediction_data <- rbind(prediction_data, effort_1_year_after)
+}
+```
 
 
 

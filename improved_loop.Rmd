@@ -1,0 +1,182 @@
+---
+title: "improved_loop"
+author: "Juliet"
+date: "11/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(broom)
+library(forecast)
+library(purrr)
+```
+
+```{r}
+data = read_csv(here('data', 'fishing-vessels-v2.csv'))
+```
+
+```{r}
+effort_trends <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  group_by(flag_gfw) %>% 
+  summarize("2012" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2013" = mean(fishing_hours_2013, na.rm = TRUE),
+            "2014" = mean(fishing_hours_2014, na.rm = TRUE),
+            "2015" = mean(fishing_hours_2015, na.rm = TRUE),
+            "2016" = mean(fishing_hours_2016, na.rm = TRUE),
+            "2017" = mean(fishing_hours_2017, na.rm = TRUE),
+            "2018" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2019" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2020" = mean(fishing_hours_2020, na.rm = TRUE))
+
+```
+
+Determine which year is the best start year for the linear regression by finding the year with the lest NA values
+
+```{r}
+# which column has the least NA values? We will use this to determine which year is the best start year for our linear regression
+sum(is.na(effort_trends$"2012"))
+sum(is.na(effort_trends$"2013"))
+sum(is.na(effort_trends$"2014"))
+sum(is.na(effort_trends$"2015"))
+sum(is.na(effort_trends$"2016"))
+sum(is.na(effort_trends$"2017"))
+# 2017 has the least NA values, so we will remove all countries that dont have data for 2017
+```
+
+Turn the data into Tidy format so we can run linear regressions over the years, and only include fishing effort for 2017-2019 because we want to regress over those years only
+
+```{r}
+# change it to tidy format, and remove all NA values, and take out the year 2020 because we want to compare what we would EXPECT in 2020 based on what we saw in 2012-2019
+
+effort_trends_tidy_no_na = effort_trends %>%
+  select(flag_gfw, "2017":"2019") %>% 
+  pivot_longer(cols = ("2017":"2019"),
+               names_to = "year",
+               values_to = "mean_effort") %>% 
+  filter(!is.na(mean_effort),
+         !is.na(flag_gfw))
+```
+
+Remove all countries that only occur once, because we need at least 2 years of fishing effort data per country to run a linear model for each country.
+
+```{r}
+# remove those countries from the dataframe
+countries_clean <- effort_trends_tidy_no_na %>% 
+  group_by(flag_gfw) %>%
+  filter(n()>1) %>% 
+  mutate(year = as.Date(year, format = "%Y"))
+```
+
+Run a simple linear regression for just one country, as a test. Plot it to visualize the fishing effort trend.
+
+```{r}
+arg_data <- countries_clean %>% 
+  filter(flag_gfw == "ARG") %>% 
+  mutate(year = as.Date(year, format = "%Y"))
+
+# test lm model with NA's
+arg_model = lm(mean_effort ~ year, data = arg_data)
+summary(arg_model)
+
+ggplot(data = arg_data, aes(x = year, y = mean_effort, color = year)) +
+   geom_point() +
+   geom_line(data = augment(arg_model), aes(y = .fitted, color = year)) + 
+   labs(x = "Year",
+        y = "Mean Fishing Hours",
+        title = "Argentina's Fishing Effort from 2017-2019")
+```
+
+Use the sapply() function to iterate through all the countries and run a linear model. Then, concatenate those linear model summaries using lapply().
+
+```{r}
+# iterate through the models, running lm() on each country
+models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+                 function(country)lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)),
+                 simplify = FALSE, USE.NAMES = TRUE)
+
+# summarize all the models
+countries_lm_summaries <- lapply(models, summary)
+
+# call the first model
+arg_summary <- models[["ARG"]]
+# try to extract the coefficients from the model
+arg_summary$coefficients[,"Estimate"][2]
+# this fails to return the slope coefficient, it returns NULL
+models[["ARG"]]$coefficients[,"Estimate"][2]
+# this fails to return the slope coefficient, it returns NULL
+
+#try calling the coefficients from the output of the summary of all the models
+# call the first summary
+countries_lm_summaries[1]
+arg_summary <- countries_lm_summaries[1]
+arg_summary$coefficients[,"Estimate"][2]
+# this also returns NULL
+```
+```{r}
+# try to extract the coefficients a different way
+
+# make a matrix first
+arg_summary_matrix <- coef(arg_summary)
+arg_summary_matrix
+class(arg_summary_matrix)
+
+#> coef(summary(f))["rprice2","Std. Error"]
+```
+When I figure out how to extract the coefficients, I can integrate them into my for loop like so:
+
+```{r}
+# this for loop iterates through the lm summaries of each country, and should put the predicted fishing effort for 2020 into the empty dataframe I create called "prediction_data"
+
+prediction_data = NULL;
+for (i in 1:length(countries_lm_summaries)) {
+  one_country_summary <- countries_lm_summaries[i]
+  print(one_country_summary)
+  intercept <- one_country_summary$coefficients[,"Estimate"][1]
+  print(intercept)
+  slope <- one_country_summary$coefficients[,"Estimate"][2]
+  print(slope)
+  predicted_effort_2020 <- intercept + slope*3
+  prediction_data <- rbind(prediction_data, predicted_effort_2020)
+  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+}
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
