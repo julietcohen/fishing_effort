@@ -417,6 +417,81 @@ top_5 <- data %>%
 ```
 
 
+```{r}
+# run a test on just one country
+abw_data_date <- abw_data %>%
+  mutate(year = as.Date(year, format = "%Y"))
+  
+  
+  
+  # mutate(year = as.Date(year, format = "%Y"),
+         
+ 
+  
+  #mutate(year = year(year))
+  
+  
+ # mutate(year = as.numeric(year)) %>% 
+ # mutate(year = as.Date(year, format = "%Y"),
+ #        year = year(year))
+  
+
+#class(abw_data_date$year)
+
+#abw_data$year = year(as.Date(abw_data$year, "%Y"))
+  
+  
+  # mutate(year = as.Date(year, "%Y")) %>% 
+#  mutate(year = year(year, tz = NULL))
+  
+  
+ # mutate(date = as_date(year, tz = NULL, format = "%Y")) %>% 
+ # mutate(year = year(date)) %>% 
+ # mutate(year = as_date(year)) #%>% 
+  #select(flag_gfw, year, )
+  #mutate(year = format(as.Date(year, format = "%Y"), "%Y"))
+ # mutate(year = as.POSIXct(year, format = "%Y"))# %>% 
+  #format(year, format = "%Y")
+
+# note sure why this function set a day as 11/23 for each year, but I can fix that later
+#class(abw_data$year)
+#class(abw_data_date$date)
+
+# test lm model with NA's
+# abw_model = lm(mean_effort ~ year, data = abw_data)
+# summary(abw_model)
+# 
+# # plot Aruba's fishing effort from 2012-2019 with the fitted line on top of the raw data
+# ggplot(data = abw_data, aes(x = year, y = mean_effort, color = year)) +
+#   geom_point() +
+#   geom_line(data = augment(abw_model), aes(y = .fitted, color = year)) + 
+#   labs(x = "Year",
+#        y = "Mean Fishing Hours")
+```
+```{r}
+# predict Aruba's fishing hours in 2019 and 2020
+# the formula is: fishing_hours = 3229.86486 + (-0.17823)*(year)
+
+# create a new column to hold the model's predicted values for Aruba's fishing hours for 2012-2019, just to check out how the predict function's outputs compare to the actual values
+abw_predict <- abw_data %>% 
+  mutate(predict = predict(abw_model))
+
+# create a new dataframe for the next years for which we want to predict
+abw_newdata <- data.frame(predict_year = c("2019-11-23", "2020-11-23")) %>%
+  mutate(predict_year = as.Date(predict_year, format = "%Y"),
+         predict_year = as.factor(predict_year))
+
+#class(abw_newdata$predict_year)
+
+# use the predict() function to plug in the year 2019 & 2020
+
+#abw_newdata_w_predict <- abw_newdata %>% 
+#  mutate(predict_fish_eff = predict(abw_model, newdata = predict_year))
+
+#abw_newdata$predict_fishing_hours = predict(abw_model, newdata = abw_newdata)
+
+predict_fish_eff <- predict(abw_model, abw_newdata)
+```
 
 
 
