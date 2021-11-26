@@ -113,16 +113,16 @@ Use the `sapply()` function to iterate through all the countries and run a linea
 
 ```{r}
 # iterate through the models, running lm() on each country
-models <- sapply(unique(as.character(countries_clean$flag_gfw)),
-                 function(country)lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)),
-                 simplify = FALSE, USE.NAMES = TRUE)
-
-# summarize all the models
-countries_lm_summaries <- lapply(models, summary)
-
-# call the first model
-arg_summary <- models[["ARG"]]
-# try to extract the coefficients from the model
+# models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+#                  function(country)lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)),
+#                  simplify = FALSE, USE.NAMES = TRUE)
+# 
+# # summarize all the models
+# countries_lm_summaries <- lapply(models, summary)
+# 
+# # call the first model
+# arg_summary <- models[["ARG"]]
+# # try to extract the coefficients from the model
 #arg_summary$coefficients[,"Estimate"][2]
 # this fails to return the slope coefficient, it returns NULL
 #models[["ARG"]]$coefficients[,"Estimate"][2]
@@ -130,11 +130,11 @@ arg_summary <- models[["ARG"]]
 
 #try calling the coefficients from the output of the summary of all the models
 # call the first summary
-countries_lm_summaries[1]
-arg_summary <- countries_lm_summaries[1]
-arg_summary$coefficients[,"Estimate"][2]
+#countries_lm_summaries[1]
+#arg_summary <- countries_lm_summaries[1]
+#arg_summary$coefficients[,"Estimate"][2]
 # this also returns NULL
-class(arg_summary)
+#class(arg_summary)
 
 # try using unnest()
 #coeff <- sapply(countries_clean$models, function(x) return(coefficients(x)))
@@ -154,44 +154,29 @@ countries_clean %>%
 models <- sapply(unique(as.character(countries_clean$flag_gfw)),
                  function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
                  simplify = FALSE, USE.NAMES = TRUE)
-
-
-models$ARG[1]
+models$AUS
 # retunrs just that country's coefficients
-models$ARG[1]
+#models$ARG[1]
 #countries_lm_summaries <- lapply(models, summary)
 #countries_lm_summaries
-
 ```
-
-```{r}
-# try to extract the coefficients a different way
-
-# make a matrix first
-arg_summary_matrix <- coef(arg_summary)
-arg_summary_matrix
-class(arg_summary_matrix)
-```
-When I figure out how to extract the coefficients, I can integrate them into my for loop like so:
 
 ```{r}
 # this for loop iterates through the lm summaries of each country, and should put the predicted fishing effort for 2020 into the empty dataframe I create called "prediction_data"
 
-prediction_data = NULL;
-for (i in 1:length(countries_lm_summaries)) {
-  one_country_summary <- countries_lm_summaries[i]
-  print(one_country_summary)
-  intercept <- one_country_summary$coefficients[,"Estimate"][1]
-  print(intercept)
-  slope <- one_country_summary$coefficients[,"Estimate"][2]
-  print(slope)
-  predicted_effort_2020 <- intercept + slope*3
-  prediction_data <- rbind(prediction_data, predicted_effort_2020)
-  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
-}
+# prediction_data = NULL;
+# for (i in 1:length(countries_lm_summaries)) {
+#   one_country_summary <- countries_lm_summaries[i]
+#   print(one_country_summary)
+#   intercept <- one_country_summary$coefficients[,"Estimate"][1]
+#   print(intercept)
+#   slope <- one_country_summary$coefficients[,"Estimate"][2]
+#   print(slope)
+#   predicted_effort_2020 <- intercept + slope*3
+#   prediction_data <- rbind(prediction_data, predicted_effort_2020)
+#   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+# }
 ```
-
-Try to run the loop with the second models code
 
 ```{r}
 prediction_data = NULL;
