@@ -22,8 +22,11 @@ library(purrr)
 ```{r}
 data = read_csv(here('data', 'fishing-vessels-v2.csv'))
 ```
+Initial data wrangling
 
 ```{r}
+# clean the data, selecting only relevant column of fishing hours and taking the means by year for each country
+
 effort_trends <- data %>% 
   select(flag_gfw, 
          fishing_hours_2012,
@@ -48,7 +51,7 @@ effort_trends <- data %>%
 
 ```
 
-Determine which year is the best start year for the linear regression by finding the year with the lest NA values
+Determine which year is the best start year for the linear regression by finding the year with the lest NA values (because in our for loop, we will multiply the slope coefficient of each country's model by the same numerical value for each country when predicting their 2020 fishing effort, so we need all countries to have the same start year of data)
 
 ```{r}
 # which column has the least NA values? We will use this to determine which year is the best start year for our linear regression
@@ -88,11 +91,13 @@ countries_clean <- effort_trends_tidy_no_na %>%
 Run a simple linear regression for just one country, as a test. Plot it to visualize the fishing effort trend.
 
 ```{r}
+# ARG = Argentina 
 arg_data <- countries_clean %>% 
   filter(flag_gfw == "ARG") %>% 
   mutate(year = as.Date(year, format = "%Y"))
+# make sure to turn the years into dates so we run a time series, otherwise the years will be considered categories
 
-# test lm model with NA's
+# run a linear model on a single country
 arg_model = lm(mean_effort ~ year, data = arg_data)
 summary(arg_model)
 
@@ -104,7 +109,7 @@ ggplot(data = arg_data, aes(x = year, y = mean_effort, color = year)) +
         title = "Argentina's Fishing Effort from 2017-2019")
 ```
 
-Use the sapply() function to iterate through all the countries and run a linear model. Then, concatenate those linear model summaries using lapply().
+Use the `sapply()` function to iterate through all the countries and run a linear model. Then, concatenate those linear model summaries using `lapply()`.
 
 ```{r}
 # iterate through the models, running lm() on each country
@@ -118,9 +123,9 @@ countries_lm_summaries <- lapply(models, summary)
 # call the first model
 arg_summary <- models[["ARG"]]
 # try to extract the coefficients from the model
-arg_summary$coefficients[,"Estimate"][2]
+#arg_summary$coefficients[,"Estimate"][2]
 # this fails to return the slope coefficient, it returns NULL
-models[["ARG"]]$coefficients[,"Estimate"][2]
+#models[["ARG"]]$coefficients[,"Estimate"][2]
 # this fails to return the slope coefficient, it returns NULL
 
 #try calling the coefficients from the output of the summary of all the models
@@ -129,7 +134,36 @@ countries_lm_summaries[1]
 arg_summary <- countries_lm_summaries[1]
 arg_summary$coefficients[,"Estimate"][2]
 # this also returns NULL
+class(arg_summary)
+
+# try using unnest()
+#coeff <- sapply(countries_clean$models, function(x) return(coefficients(x)))
+
+#bind_cols(countries_clean, data.frame(t(coeff))) %>% 
+#     rename_at(6:8, ~ c("intc",  "coef1",  "coef2")) %>% 
+#          distinct(flag_gfw, .keep_all = TRUE)
+
+# try to use the do() function
+
+countries_clean %>% 
+  group_by(flag_gfw) %>% 
+  do(data.frame(., as.list(coef(lm(mean_effort~year, .))))) #%>%
+  #rename_at(5:7, ~c("intc", "coef1", "coef2"))
+
+# try to adjust the code that worked earlier to be like this code
+models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+                 function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
+                 simplify = FALSE, USE.NAMES = TRUE)
+
+
+models$ARG[1]
+# retunrs just that country's coefficients
+models$ARG[1]
+#countries_lm_summaries <- lapply(models, summary)
+#countries_lm_summaries
+
 ```
+
 ```{r}
 # try to extract the coefficients a different way
 
@@ -137,8 +171,6 @@ arg_summary$coefficients[,"Estimate"][2]
 arg_summary_matrix <- coef(arg_summary)
 arg_summary_matrix
 class(arg_summary_matrix)
-
-#> coef(summary(f))["rprice2","Std. Error"]
 ```
 When I figure out how to extract the coefficients, I can integrate them into my for loop like so:
 
@@ -159,11 +191,16 @@ for (i in 1:length(countries_lm_summaries)) {
 }
 ```
 
+Try to run the loop with the second models code
+
 ```{r}
-
+prediction_data = NULL;
+for (i in 1:length(models)) {
+  predicted_effort_2020 <- models[[i]][1] + models[[i]][2]*3
+  prediction_data <- rbind(prediction_data, predicted_effort_2020)
+  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+}
 ```
-
-
 
 
 
