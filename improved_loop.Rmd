@@ -86,6 +86,7 @@ countries_clean <- effort_trends_tidy_no_na %>%
   group_by(flag_gfw) %>%
   filter(n()>1) %>% 
   mutate(year = as.Date(year, format = "%Y"))
+# 83 coutnries remain in this dataset
 ```
 
 Run a simple linear regression for just one country, as a test. Plot it to visualize the fishing effort trend.
@@ -107,6 +108,27 @@ ggplot(data = arg_data, aes(x = year, y = mean_effort, color = year)) +
    labs(x = "Year",
         y = "Mean Fishing Hours",
         title = "Argentina's Fishing Effort from 2017-2019")
+```
+
+Look at another country with a negative intercept (the Caribbean Netherlands) to see what that data looks like.
+
+```{r}
+can_data <- countries_clean %>% 
+  filter(flag_gfw == "CAN") %>% 
+  mutate(year = as.Date(year, format = "%Y"))
+# make sure to turn the years into dates so we run a time series, otherwise the years will be considered categories
+
+# run a linear model on a single country
+can_model = lm(mean_effort ~ year, data = can_data)
+summary(can_model)
+
+# when you plot this one, do not include the geom line aspect because it is not fitting the data correctly at all
+ggplot(data = can_data, aes(x = year, y = mean_effort, color = year)) +
+   geom_point() +
+   geom_line(data = augment(can_model), aes(y = .fitted, color = year)) + 
+   labs(x = "Year",
+        y = "Mean Fishing Hours",
+        title = "Canada's Fishing Effort from 2017-2019")
 ```
 
 Use the `sapply()` function to iterate through all the countries and run a linear model. Then, concatenate those linear model summaries using `lapply()`.
@@ -154,7 +176,7 @@ countries_clean %>%
 models <- sapply(unique(as.character(countries_clean$flag_gfw)),
                  function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
                  simplify = FALSE, USE.NAMES = TRUE)
-models$AUS
+models[[4]]
 # retunrs just that country's coefficients
 #models$ARG[1]
 #countries_lm_summaries <- lapply(models, summary)
@@ -186,10 +208,54 @@ for (i in 1:length(models)) {
   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
 }
 ```
+Combine the predicted 2020 fishing effort data with the actual 2020 fishing effort data to compare by country.
 
+```{r}
+# figure out which countries were used in the for loop so we can get the actual 2020 effort data for those countries only
+countries_clean_unique <- countries_clean %>% 
+  group_by(flag_gfw) %>%
+  slice_head(n = 1)
 
+# set these countries as a vector so we can subset the effort_trends data to only include those countries
+countries_to_compare <- unique(countries_clean_unique$flag_gfw)
+countries_to_compare
+  
+# ensure that there are 83 rows in both datasets
+nrow(countries_clean_unique)
+nrow(prediction_data)
 
+# set the effort trends data to only include those countries
+comparison_2020 <- effort_trends %>% 
+  select(flag_gfw, "2020") %>%
+  rename(actual_2020 = "2020") %>% 
+  filter(str_detect(flag_gfw, paste(countries_to_compare, collapse="|"))) %>% 
+  cbind(prediction_data) %>% 
+  rename(prediction_2020 = prediction_data) %>% 
+  filter(actual_2020 != "NaN")
+# I made sure to remove the NAN values from the countries that did not have actual data for 2020 AFTER I USED cbind() because I wanted to bind the actual 2020 data to the corresponding rows with the predicted data first or else the alignment would yield incorrect data
+```
 
+Do a hypothesis test on the difference between the predicted mean and the average mean.
+
+**Null Hypothesis:** There is no difference between the predicted country-specific predicted fishing effort in 2020 and the actual country-specific fishing effort in 2020.
+**Alternative Hypothesis:** There is a difference between the predicted country-specific predicted fishing effort in 2020 and the actual country-specific fishing effort in 2020. Because of the pandemic in 2020, I predict that fishing effort decreased, meaning that the actual country-specific fishing effort is less than the predicted country-specific fishing effort.
+```{r}
+# running a ttest actual ~ predict fails with the comparison_2020 data AND it also fails running with comparison_2020 data filtered to only one country...because there are more than 2 levels (?) so maybe we need to run difference_act_pred ~ country with ANOVA? seems out of the scope of this class
+
+#ttest_practice_data <- comparison_2020 %>% 
+#  filter(flag_gfw == "ARG")
+
+#ttest = t.test(actual_2020 ~ prediction_2020, data = ttest_practice_data, conf.level = 0.95)
+#ttest
+
+#p_val <- ttest$p.value
+#p_val
+
+# consider instead of a ttest, maybe we should run a regression thing to see how much error there was between the predicted and the actual
+```
+
+## Consider removing the negative predicted values from the fishing data...they are impossible intercepts
+## Consider changing the explanation for filtering for countries from 2017-2020 to train the lm model, the more reasonable reasoning is that 2017-2019 is 3 yrs of data that leads up to 2020, most predictive due to it being recent and it gives more countries than doing 2016-2019 since we have to remove all NA values
 
 
 
