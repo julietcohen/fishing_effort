@@ -357,11 +357,193 @@ for (i in 1:length(countries_lm_summaries)) {
 ```
 
 
+## when I was struggling with ttests and decomposition code:
+
+```{r}
+# narrow it down to two countries, but the ttest still fails because now there is not enough x observations
+ttest_data_chn_fji <- comparison_2020_pos %>% 
+  filter(flag_gfw == "CHN" | flag_gfw == "FJI")
+
+ttest = t.test(difference ~ flag_gfw, data = ttest_data_chn_fji, conf.level = 0.95)
+```
+
+```{r}
+# we only need 1 p-val for countries comparing those that inc or dec fishing, the ID of the country does not matter at this point, so lets make all the countries that inc "INC" and those that dec to "DEC" and run a ttest
+
+ttest_data_inc_dec <- comparison_2020_pos %>% 
+  mutate(change_direc = case_when(
+    difference > 0 ~ "inc",
+    difference <0 ~ "dec"))
+
+ttest = t.test(change_direc ~ flag_gfw, data = ttest_data_inc_dec, conf.level = 0.95)
+
+```
 
 
+## Consider removing the negative predicted values from the fishing data...they are impossible intercepts
+## Consider changing the explanation for filtering for countries from 2017-2020 to train the lm model, the more reasonable reasoning is that 2017-2019 is 3 yrs of data that leads up to 2020, most predictive due to it being recent and it gives more countries than doing 2016-2019 since we have to remove all NA values
 
 
+Try to look at trend strength in actual 2017-2020 versus trend strength in predicted 2017-2020 using classical_decomposition()
 
+```{r}
+# restructure countries_clean data to be by year rather than by country, so getting means from 2017, 2018, 2019, actual 2020, pred 2020
+
+# actual data reconstruction
+
+effort_trends_cd <- data %>% 
+  select(flag_gfw, 
+         fishing_hours_2012,
+         fishing_hours_2013,
+         fishing_hours_2014,
+         fishing_hours_2015,
+         fishing_hours_2016,
+         fishing_hours_2017,
+         fishing_hours_2018,
+         fishing_hours_2019,
+         fishing_hours_2020) %>% 
+  filter(flag_gfw == "ARG" | flag_gfw == "AUS" | flag_gfw == "BEL" | flag_gfw == "BGR" | flag_gfw == "BLZ" | flag_gfw == "CHN" | flag_gfw == "COL" | flag_gfw == "CUB" | flag_gfw == "CUW" | flag_gfw == "DEU" | flag_gfw == "DNK" | flag_gfw == "ECU" | flag_gfw == "ESP" | flag_gfw == "FIN" | flag_gfw == "FJI" | flag_gfw == "FRA" | flag_gfw == "FRO" | flag_gfw == "FSM" | flag_gfw == "GBR" | flag_gfw == "GRC" | flag_gfw == "HKG" | flag_gfw == "HRV" | flag_gfw == "IRL" | flag_gfw == "IRN" | flag_gfw == "ITA" | flag_gfw == "LBR" | flag_gfw == "LVA" | flag_gfw == "MAR" | flag_gfw == "MEX" | flag_gfw == "MHL" | flag_gfw == "MLT" | flag_gfw == "MYS" | flag_gfw == "NAM" | flag_gfw == "NCL" | flag_gfw == "NIC" | flag_gfw == "NLD" | flag_gfw == "PAN" | flag_gfw == "PHL" | flag_gfw == "POL" | flag_gfw == "PRT" | flag_gfw == "RUS" | flag_gfw == "SLE" | flag_gfw == "SWE" | flag_gfw == "SYC" | flag_gfw == "TUR" | flag_gfw == "TWN" | flag_gfw == "UNK" | flag_gfw == "VEN" | flag_gfw == "VUT" | flag_gfw == "ZAF") %>% 
+  summarize("2012" = mean(fishing_hours_2012, na.rm = TRUE),
+            "2013" = mean(fishing_hours_2013, na.rm = TRUE),
+            "2014" = mean(fishing_hours_2014, na.rm = TRUE),
+            "2015" = mean(fishing_hours_2015, na.rm = TRUE),
+            "2016" = mean(fishing_hours_2016, na.rm = TRUE),
+            "2017" = mean(fishing_hours_2017, na.rm = TRUE),
+            "2018" = mean(fishing_hours_2018, na.rm = TRUE),
+            "2019" = mean(fishing_hours_2019, na.rm = TRUE),
+            "2020" = mean(fishing_hours_2020, na.rm = TRUE))
+
+effort_trends_tidy_no_na_cd_actual = effort_trends_cd %>%
+  select("2017":"2020") %>% 
+  pivot_longer(cols = ("2017":"2020"),
+               names_to = "year",
+               values_to = "mean_effort") %>%
+  mutate(year = as.Date(year, format = "%Y"))
+
+actual_graph <- ggplot(effort_trends_tidy_no_na_cd_actual, aes(x = year, y = mean_effort)) +
+  geom_line()
+actual_graph
+
+# remove those countries from the dataframe
+# countries_clean_cd_actual <- effort_trends_tidy_no_na_cd_actual %>% 
+#   group_by(flag_gfw) %>%
+#   #filter(n()>1) %>% 
+#   mutate(year = as.Date(year, format = "%Y"))
+
+# for cd, we need to find means by year
+
+#TEST <- aggregate(effort_trends_tidy_no_na_cd_actual$mean_effort, by = list(year=effort_trends_tidy_no_na_cd_actual$year), FUN=mean)
+
+# cd_actual <- effort_trends_tidy_no_na_cd_actual %>%
+#   select(year, mean_effort) %>%
+#   mutate(year = as.factor(year)) %>%
+#   group_by(year) %>%
+#   summarize(mean_effort = mean(mean_effort)) #%>%
+# mutate(year = as.Date(year, format = "%Y"))
+# 
+# class(cd_actual$year)
+
+# pred data reconstruction, can use the original effort_trends_tidy_no_na and append the predicted 2020 values
+
+# filter for only countries that were in comparsion_2020_pos
+unique(comparison_2020_pos$flag_gfw)
+
+# make all prediction data pos
+#prediction_data_pos <- prediction_data %>% 
+#  filter(V1 > 0)
+
+summarized_pred_data <- comparison_2020_pos %>% 
+  summarize(mean_pred_hours = mean(prediction_2020))
+
+effort_trends_tidy_no_na_cd_predicted <- effort_trends_cd %>%
+  select("2017":"2019") %>% 
+  cbind(summarized_pred_data$mean_pred_hours) %>% 
+  rename("2020" = "summarized_pred_data$mean_pred_hours") %>%
+  pivot_longer(cols = ("2017":"2020"),
+               names_to = "year",
+               values_to = "mean_effort") %>%
+  mutate(year = as.Date(year, format = "%Y"))
+
+predicted_graph <- ggplot(effort_trends_tidy_no_na_cd_predicted, aes(x = year, y = mean_effort)) +
+  geom_line()
+predicted_graph
+
+# countries_clean_cd_pred <- effort_trends_tidy_no_na_cd_predicted %>% 
+#   group_by(flag_gfw) %>%
+#   #filter(n()>1) %>% 
+#   mutate(year = as.Date(year, format = "%Y"))
+# 
+# cd_pred <- countries_clean_cd_pred %>% 
+#   group_by(year) %>% 
+#   summarize(mean_effort = mean(mean_effort)) %>% 
+#   select(year, mean_effort)
+
+# actual cd
+
+# decomposition_actual <- as_tsibble(effort_trends_tidy_no_na_cd_actual) %>%
+#   model(classical_decomposition(mean_effort, type = "additive")) %>%
+#   components(x, tread) %>%
+#   autoplot() +
+#   labs(title = "Classical additive decomposition of average fishing effort by year")
+# 
+# decomposition_actual
+
+```
+
+
+## MISC other code that I had tried, just for safe-keeping:
+
+```{r}
+# this for loop iterates through the lm summaries of each country, and should put the predicted fishing effort for 2020 into the empty dataframe I create called "prediction_data"
+
+# prediction_data = NULL;
+# for (i in 1:length(countries_lm_summaries)) {
+#   one_country_summary <- countries_lm_summaries[i]
+#   print(one_country_summary)
+#   intercept <- one_country_summary$coefficients[,"Estimate"][1]
+#   print(intercept)
+#   slope <- one_country_summary$coefficients[,"Estimate"][2]
+#   print(slope)
+#   predicted_effort_2020 <- intercept + slope*3
+#   prediction_data <- rbind(prediction_data, predicted_effort_2020)
+#   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+# }
+```
+
+```{r}
+# iterate through the models, running lm() on each country
+# models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+#                  function(country)lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)),
+#                  simplify = FALSE, USE.NAMES = TRUE)
+# 
+# # summarize all the models
+# countries_lm_summaries <- lapply(models, summary)
+# 
+# # call the first model
+# arg_summary <- models[["ARG"]]
+# # try to extract the coefficients from the model
+#arg_summary$coefficients[,"Estimate"][2]
+# this fails to return the slope coefficient, it returns NULL
+#models[["ARG"]]$coefficients[,"Estimate"][2]
+# this fails to return the slope coefficient, it returns NULL
+
+#try calling the coefficients from the output of the summary of all the models
+# call the first summary
+#countries_lm_summaries[1]
+#arg_summary <- countries_lm_summaries[1]
+#arg_summary$coefficients[,"Estimate"][2]
+# this also returns NULL
+#class(arg_summary)
+
+# try using unnest()
+#coeff <- sapply(countries_clean$models, function(x) return(coefficients(x)))
+
+#bind_cols(countries_clean, data.frame(t(coeff))) %>% 
+#     rename_at(6:8, ~ c("intc",  "coef1",  "coef2")) %>% 
+#          distinct(flag_gfw, .keep_all = TRUE)
+
+# try to use the do() function
+```
 
 
 
