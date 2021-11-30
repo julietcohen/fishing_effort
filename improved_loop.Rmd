@@ -341,7 +341,7 @@ good_bad_table <- comparison_data_rearranged %>%
     columns = vars(change_direc)
   ) %>%
   cols_label(flag_gfw = "Country Code" , 
-           mean_effort = "Actual Mean Fishing Hours in 2020",
+           mean_effort = "Mean Fishing Hours in 2020",
            actual_or_predicted = "Actual or Predicted 2020 Effort",
            difference = "Difference: Prediction - Actual",
            change_direc = "Fishing Effort Relative to Trend") %>% 
@@ -354,7 +354,25 @@ good_bad_table <- comparison_data_rearranged %>%
       columns = vars(flag_gfw, mean_effort, actual_or_predicted, difference, change_direc),
       rows = change_direc == "fished LESS than trend")
   ) %>% 
-  tab_source_note(source_note = "Data Source: Global Fishing Watch: https://globalfishingwatch.org/datasets-and-code/") 
+  tab_style(
+    style = list(
+      cell_fill(color = "brown2"),
+      cell_text(weight = "bold")
+      ),
+    locations = cells_body(
+      columns = vars(flag_gfw, mean_effort, actual_or_predicted, difference, change_direc),
+      rows = change_direc == "fished MORE than trend")
+  ) %>% 
+  tab_source_note(source_note = "Data Source: Global Fishing Watch: https://globalfishingwatch.org/datasets-and-code/") %>%
+  opt_align_table_header(align = "center") %>% 
+  cols_width(
+    flag_gfw ~ px(90),
+    mean_effort ~ px(140),
+    actual_or_predicted ~ px(125),
+    difference ~ px(240),
+    change_direc ~ px(220)
+  ) %>% 
+  cols_align(align = "center")
 
 
 good_bad_table
