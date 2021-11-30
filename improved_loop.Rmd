@@ -17,6 +17,7 @@ library(lubridate)
 library(broom)
 library(forecast)
 library(purrr)
+library(gt)
 ```
 
 ```{r}
@@ -118,7 +119,7 @@ min_y_arg
 arg_plot <- ggplot(data = arg_data, aes(x = year, y = mean_effort, color = year)) +
    geom_point(size = 4,
               color = "firebrick",
-              shape = 18) +
+              shape = 11) +
    geom_line(data = augment(arg_model),
              aes(y = .fitted),
              color = "orange",
@@ -157,7 +158,7 @@ min_y_can
 ggplot(data = can_data, aes(x = year, y = mean_effort, color = year)) +
    geom_point(size = 4, 
               color = "firebrick",
-              shape = 18) +
+              shape = 11) +
    geom_line(data = augment(can_model),
              aes(y = .fitted),
              color = "orange",
@@ -239,8 +240,8 @@ comparison_2020_pos <- comparison_2020 %>%
 comparison_2020_pos <- comparison_2020_pos %>% 
   mutate(difference = prediction_2020 - actual_2020) %>% 
   mutate(change_direc = case_when(
-    difference > 0 ~ "fished_less_than_trend",
-    difference < 0 ~ "fished_more_than_trend"))
+    difference > 0 ~ "fished LESS than trend",
+    difference < 0 ~ "fished MORE than trend"))
 ```
 
 
@@ -272,55 +273,92 @@ This table shows the countries that increased their 2020 fishing effort relative
 #  mutate(bad_countries = filter(change_direc == fished_more_than_trend),
 #         good_countries = filter(change_direc == fished_less_than_trend))
 
-bad_countries = comparison_tidy %>% 
-  filter(change_direc == "fished_more_than_trend")
+# bad_countries = comparison_tidy %>% 
+#   filter(change_direc == "fished_more_than_trend")
+# 
+# bad_countries_list <- as.list(unique(bad_countries$flag_gfw))
+# #bad_countries_list
+# 
+# good_countries = comparison_tidy %>% 
+#   filter(change_direc == "fished_less_than_trend")
+# 
+# good_countries_list <- as.list(unique(good_countries$flag_gfw))
+#good_countries_list
 
-bad_countries_list <- as.list(unique(bad_countries$flag_gfw))
-bad_countries_list
+# make a datafame from these lists
 
-good_countries = comparison_tidy %>% 
-  filter(change_direc == "fished_less_than_trend")
+#countries_good_bad_df <- as.data.frame(,
+#                           col.names = c("Numbers", "Letters", "Words"))
 
-good_countries_list <- as.list(unique(good_countries$flag_gfw))
-good_countries_list
+#good_bad_df <- do.call(rbind, Map(data.frame, good = good_countries_list, bad = bad_countries_list))
+# this repeats the vlaues in the good col to match # of rows in the bad col...not good
 
 # make a table from these lists
 
-
-
-
-
-
-
-
-
-
-
-
 # inc_dec_table <- gt() %>%
 #   tab_header(
-#     title = "Which countries increased or decreased 2020 fishing effort relative to their trend?",
+#     title = "Which countries increased or decreased 2020 fishing effort relative to their trend?"
 #   ) %>%
 #   fmt_passthrough(
-#     columns = vars(unique(bad_countries$flag_gfw))
-#   ) %>% 
-#   fmt_number(
-#     columns = vars(mean),
-#     decimals = 4
+#     columns = vars(bad_countries_list)
 #   ) %>%
-#   fmt_number(
-#     columns = vars(median),
-#     decimals = 4
+#   fmt_passthrough(
+#     columns = vars(bad_countries_list)
 #   ) %>%
-#   fmt_number(
-#     columns = vars(seventy_fifth_percentile),
-#     decimals = 4
-#   ) %>%
-#   fmt_number(
-#     columns = vars(standard_deviation),
-#     decimals = 4
-#   ) %>%
-#   cols_label(quantile = "Quantile" , mean = "Mean", median = "Median", seventy_fifth_percentile = "75th Percentile", standard_deviation = "Standard Deviation")
+ # fmt_number(
+ #   columns = vars(median),
+ #   decimals = 4
+ # ) %>% 
+ # cols_label(quantile = "Quantile" , mean = "Mean")
+```
+```{r}
+# convert the comparison_tidy data to a table
+
+# first, rearrange the columns
+comparison_data_rearranged <- comparison_tidy[, c(1, 5, 4, 2, 3)]
+
+title = md("**Penguin Data Summary**")
+
+# make a kable table
+good_bad_table <- comparison_data_rearranged %>% 
+  gt() %>%
+  tab_header(
+    title = md("**Which countries increased or decreased 2020 fishing effort relative to their trend?**")
+  ) %>%
+  fmt_passthrough(
+    columns = vars(flag_gfw)
+  ) %>%
+  fmt_number(
+  columns = vars(mean_effort)
+  ) %>% 
+  fmt_passthrough(
+    columns = vars(actual_or_predicted)
+  ) %>%
+  fmt_number(
+  columns = vars(difference)
+  ) %>%
+  fmt_passthrough(
+    columns = vars(change_direc)
+  ) %>%
+  cols_label(flag_gfw = "Country Code" , 
+           mean_effort = "Actual Mean Fishing Hours in 2020",
+           actual_or_predicted = "Actual or Predicted 2020 Effort",
+           difference = "Difference: Prediction - Actual",
+           change_direc = "Fishing Effort Relative to Trend") %>% 
+  tab_style(
+    style = list(
+      cell_fill(color = "chartreuse2"),
+      cell_text(weight = "bold")
+      ),
+    locations = cells_body(
+      columns = vars(flag_gfw, mean_effort, actual_or_predicted, difference, change_direc),
+      rows = change_direc == "fished LESS than trend")
+  ) %>% 
+  tab_source_note(source_note = "Data Source: Global Fishing Watch: https://globalfishingwatch.org/datasets-and-code/") 
+
+
+good_bad_table
+
 ```
 
 
