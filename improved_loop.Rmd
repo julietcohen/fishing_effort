@@ -409,15 +409,15 @@ Use the `sapply()` function to iterate through all the countries and run a linea
 ```{r}
 # transferred
 
-lm_df <- countries_clean %>% 
-  group_by(flag_gfw) %>% 
-  do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
-lm_df
+#lm_df <- countries_clean %>% 
+#  group_by(flag_gfw) %>% 
+#  do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+#lm_df
 
-prediction_data_no_dup <- prediction_data[!duplicated(prediction_data),]
-class(prediction_data_no_dup)
+#prediction_data_no_dup <- prediction_data[!duplicated(prediction_data),]
+#class(prediction_data_no_dup)
 
-lm_df_unique <- lm_df[!duplicated(lm_df$flag_gfw),]
+#lm_df_unique <- lm_df[!duplicated(lm_df$flag_gfw),]
 
 #prediction_no_dup_df <- as.data.frame(prediction_data_no_dup)
 
@@ -481,12 +481,24 @@ lm_df_unique <- lm_df[!duplicated(lm_df$flag_gfw),]
 #countries <- unique(lm_df$flag_gfw)
 #countries
 
+lm_df <- countries_clean %>% 
+  group_by(flag_gfw) %>% 
+  do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+# lm_df has 3 obs per country and 342 rows
+
+#prediction_data_no_dup <- prediction_data[!duplicated(prediction_data),]
+#class(prediction_data_no_dup)
+
+lm_df_unique <- lm_df[!duplicated(lm_df$flag_gfw),]
+# lm_df_unique has 114 rows, one for each country
+
+
 prediction_data = NULL;
-for (i in 1:length(lm_df_unique)) {
-  predicted_effort_2020 <- lm_df_unique$X.Intercept.[i] + lm_df_unique$year.1[i]*4
-  print(predicted_effort_2020)
-  prediction_data <- rbind(prediction_data, predicted_effort_2020)
-  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+for (i in 1:length(lm_df_unique$flag_gfw)) {
+  predicted_effort_2020[i] <- lm_df_unique$X.Intercept.[i] + lm_df_unique$year.1[i]
+  print(predicted_effort_2020[i])
+  prediction_data <- rbind(prediction_data, predicted_effort_2020[i])
+  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020[i]))
 }
 
 # remove duplicate rows
