@@ -411,36 +411,49 @@ Use the `sapply()` function to iterate through all the countries and run a linea
 ```{r}
 # transferred
 
-penguin <- countries_clean %>% 
+lm_df <- countries_clean %>% 
   group_by(flag_gfw) %>% 
   do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+lm_df
+# penguin$X.Intercept.[1] + penguin$year.1[1]
+# penguin$X.Intercept.[1]
+# penguin$year.1[1]
+# 
+# # try to adjust the code that worked earlier to be like this code
+# models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+#                  function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
+#                  simplify = FALSE, USE.NAMES = TRUE)
+# # #models[[4]]
+# # retunrs just that country's coefficients
+# #models$ARG[1]
+# #countries_lm_summaries <- lapply(models, summary)
+# #countries_lm_summaries
+# head(models)
 
-penguin$X.Intercept.[1] + penguin$year.1[1]
-penguin$X.Intercept.[1]
-penguin$year.1[1]
-
-# try to adjust the code that worked earlier to be like this code
-models <- sapply(unique(as.character(countries_clean$flag_gfw)),
-                 function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
-                 simplify = FALSE, USE.NAMES = TRUE)
-#models[[4]]
-# retunrs just that country's coefficients
-#models$ARG[1]
-#countries_lm_summaries <- lapply(models, summary)
-#countries_lm_summaries
-models
+#models
 ```
 
 ```{r}
 #transferred
 
-prediction_data = NULL;
-for (i in 1:length(models)) {
-  predicted_effort_2020 <- models[[i]][1] + models[[i]][2]*3
-  prediction_data <- rbind(prediction_data, predicted_effort_2020)
-  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
-}
+# prediction_data = NULL;
+# for (i in 1:length(models)) {
+#   predicted_effort_2020 <- models[[i]][1] + models[[i]][2]*3
+#   prediction_data <- rbind(prediction_data, predicted_effort_2020)
+#   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+# }
 ```
+
+```{r}
+penguin$X.Intercept.[1]
+penguin$X.Intercept.[1] + penguin$year.1[1]
+penguin$X.Intercept.[1] + penguin$year.1[1]*3
+
+penguin$X.Intercept.[4]
+penguin$X.Intercept.[4] + penguin$year.1[4]
+penguin$X.Intercept.[4] + penguin$year.1[4]*3
+```
+
 
 ```{r}
 # try multiplying the by 3 with parenthesis
@@ -456,16 +469,35 @@ for (i in 1:length(models)) {
 #   group_by(flag_gfw) %>% 
 #   do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
 # 
-# penguin$X.Intercept.[1] + penguin$year.1[1]
-# penguin$X.Intercept.[1]
-# penguin$year.1[1]
 
-prediction_data_test = NULL;
-for (i in 1:length(models)) {
-  predicted_effort_2020 <- penguin$X.Intercept.[i] + penguin$year.1[i]
-  #predicted_effort_2020[i+1] <- (models[[i]][1] + (models[[i]][2])*3)
+unique_countries <- unique(as.character(countries_clean$flag_gfw))
+
+
+prediction_data = NULL;
+for (i in 1:length(unique_countries)) {
+  predicted_effort_2020 <- lm_df$X.Intercept.[i] + lm_df$year.1[i]*3
   print(predicted_effort_2020)
   prediction_data <- rbind(prediction_data, predicted_effort_2020)
+  print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+}
+
+# remove duplicate rows
+prediction_data_unique <- prediction_data %>% 
+  mutate(prediction = as.character("V1")) %>% 
+  group_by(V1) %>%
+  slice_head(n = 1)
+
+# delete_lm_repeats <- seq(1, nrow(prediction_data), 2)
+# comparison_rearranged_simplified <- comparison_data_rearranged[ delete ,]
+```
+
+```{r}
+prediction_data_test = NULL;
+for (i in 1:length(models)) {
+  predicted_effort_2020 <- penguin$X.Intercept.[i] + (penguin$year.1[i]*3)
+  #predicted_effort_2020[i+1] <- (models[[i]][1] + (models[[i]][2])*3)
+  print(predicted_effort_2020)
+  prediction_data_test <- rbind(prediction_data, predicted_effort_2020)
   #print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
 }
 ```
