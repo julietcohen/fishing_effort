@@ -128,7 +128,9 @@ models <- sapply(unique(as.character(countries_clean$flag_gfw)),
                  function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
                  simplify = FALSE, USE.NAMES = TRUE)
 # #models[[4]]
-# #models
+models
+countries_in_models <- unique(as.character(countries_clean$flag_gfw))
+countries_in_models
 # 
 prediction_data = NULL;
 for (i in 1:length(models)) {
