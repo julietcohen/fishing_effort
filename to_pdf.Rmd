@@ -3,9 +3,9 @@ title: " Covid-19 and Global Fishing Activity"
 author: "Juliet Cohen"
 date: "12/1/2021"
 output:
+  html_document: default
   pdf_document:
     extra_dependencies: ["float"]
-  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -21,17 +21,15 @@ As an aspiring wildlife biologist and data scientist, I'm interested in applying
 Global Fishing Watch offers an [interactive map](https://globalfishingwatch.org/map/?latitude=19&longitude=-30&zoom=1.5&start=2021-08-26T23%3A00%3A00.000Z&end=2021-11-27T00%3A00%3A00.000Z) that displays fishing activity across the globe through a heat map. This visualization has the potential to inspire data scientists, fish enthusiasts, environmental justice advocates, pandemic researchers, and everyone in between to examine fishing activity during a time period of interest. 
 
 #### **Global fishing activity from January 1, 2019 through January 1, 2020.**
-!["2019 Global Fishing Activity"](pictures/fishing_gfw_map_2019.png)
+![](pictures/fishing_gfw_map_2019.png)
 
 #### **Global fishing activity from January 1, 2020 through January 1, 2021.**
-!["2020 Global Fishing Activity"](pictures/fishing_gfw_map_2020.png)
+![](pictures/fishing_gfw_map_2020.png)
 
 Global Fishing Watch and their partners also provide an [interactive map](https://globalfishingwatch.org/carrier-portal/?latitude=12.7069821&longitude=19.1776829&zoom=1.1903704&layer[0]=encounter&layer[1]=cp_rfmo&layer[2]=cp_next_port&dataset=carriers:v20211001&tab=flags) that allows users to interact with vessels across the globe, filter by country, and overlay port locations on coastlines.
 
 #### **Global vessel activity by country from January 1, 2017 through September 30, 2021**
-!["Fishing Vessels by Country"](pictures/flag_vessels_gfw_map.png)
-
-First things first, let's import our necessary R packages and the dataset from Global Fishing Watch that includes country identification for each vessel as well as fishing hours by year:
+![](pictures/flag_vessels_gfw_map.png)
 
 ```{r}
 # the tidyverse includes my go-to set of functions for data cleaning and wrangling
@@ -50,7 +48,7 @@ data = read_csv(file.path('data', 'fishing-vessels-v2.csv'))
 
 ### Data Cleaning and Wrangling
 
-This dataset includes fishing effort and vessel information from 124 countries over the years 2012-2020. First, we select our variables of interest, group by country, and take the fishing effort means per year.
+Global Fishing Watch's data includes fishing effort and vessel information from 124 countries over the years 2012-2020. First, we select our variables of interest, group by country, and take the fishing effort means per year.
 
 ```{r}
 # clean the data, selecting only relevant column of fishing hours and taking the means by year for each country
@@ -79,7 +77,7 @@ effort_trends <- data %>%
 
 ```
 
-Our goal is to run a linear regression on each country's fishing effort over multiple years, but many countries have NA data for certain years. Considering that we have data available for 2012-2020, which years should we choose? We want to select a chunk of continuous years leading up to 2020 with minimal data gaps. We want to minimize the amount of NA values because we will drop all rows with NA values, and we want to maintain the maximum amount of rows (which represent vessels) and countries as possible. In order to choose the start year for the time period that we will feed into the linear regression, let's take a look at the amount of NA values in the years leading up to 2020.
+Our goal is to run a linear regression on each country's fishing effort over multiple years, but many countries have `NA` data for certain years. Considering that we have data available for 2012-2020, which years should we choose? We want to select a chunk of continuous years leading up to 2020 with minimal data gaps. We want to minimize the amount of `NA` values because we will drop all rows with `NA` values, and we want to maintain the maximum amount of rows (which represent vessels) and countries as possible. In order to choose the start year for the time period that we will feed into the linear regression, we'll take a look at the amount of `NA` values in the years leading up to 2020. It turns out that 2017 has the least amount of `NA` values, so we will use that year to start our 3-year data period to feed to the linear regression. Next, we convert the data into **Tidy** format and remove `NA` values so we can run a time series linear regression analysis.
 
 ```{r}
 # only need to look at 2012 - 2017 rather than 2012 - 2019 because we want a few years of data to plug into the linear regression
@@ -89,11 +87,7 @@ sum(is.na(effort_trends$"2014"))
 sum(is.na(effort_trends$"2015"))
 sum(is.na(effort_trends$"2016"))
 sum(is.na(effort_trends$"2017"))
-```
 
-2017 has the least amount of NA values, so we will use that year to start our 3-year data period to feed to the linear regression. Next, we convert the data into **Tidy** format and remove NA values so we can run a time series linear regression analysis.
-
-```{r}
 # change it to tidy format using pivot_longer()
 # remove all NA values, and take out the year 2020 because we want to compare what we would EXPECT in 2020 based on what we saw in 2017-2019
 
@@ -106,7 +100,7 @@ effort_trends_tidy_no_na = effort_trends %>%
          !is.na(flag_gfw))
 ```
 
-Our dates are in years, and currently their class is `character`. We need these years in `date` format in order to run a linear regression over time. We will convert these years and remove all countries that only have data for 2 years, because we need multiple years of data to feed into the regression and we want each country to have equal amounts of data and start in the year 2017.
+Our dates are in years, and currently their class is `character` in the original dataset. We need these years in `date` format in order to run a linear regression over time. We will convert these years and remove all countries that only have data for 1 or 2 years, because we need multiple years of data to feed into the regression and we want each country to have equal amounts of data and start in the year 2017.
 
 ```{r}
 # define day as Jan 1 so that when we convert the year to a date we get the first of the year so the plot looks better later on! Otherwise, R will paste TODAY'S date at the end of each year, which will skew the x axis when we plot later
@@ -122,20 +116,30 @@ countries_clean <- effort_trends_tidy_no_na_date %>%
   mutate(year = as.Date(year, format = "%Y-%m-%d"))
 ```
 
-By feeding the output of these linear models into a for loop, we can plug in each country's fishing effort intercept and slope into a linear equation to predict the fishing effort in 2020 based on that country's historical trend. We 
+## Linear Regression
+
+Now that the data is sufficiently clean and our years are of class `date`, we can run a time series linear regression on every country's fishing effort from 2017-2019 and use the output coefficients to glean which direction each country is trending, meaning if the country is fishing more or less over time. We can do this with the `do()` function, grouping by country. We can set the function to output all the model coefficients as a list. Then we can feed this output into a for loop! We can plug in each country's fishing effort intercept and slope coefficients into a linear equation to predict the fishing effort in 2020 based on that country's historical trend. Subsequently, we can combine the predicted 2020 fishing effort data with the actual 2020 fishing effort data into a single dataframe to compare by country. We can make a new column that takes the difference of the actual and predicted values, and then add a column that explicitly states whether that country increased or decreased their fishing effort in 2020 relative to their trend leading up to 2020.
 
 ```{r}
+
+countries_clean %>% 
+  group_by(flag_gfw) %>% 
+  do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+
+# try to adjust the code that worked earlier to be like this code
+models <- sapply(unique(as.character(countries_clean$flag_gfw)),
+                 function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
+                 simplify = FALSE, USE.NAMES = TRUE)
+#models[[4]]
+#models
+
 prediction_data = NULL;
 for (i in 1:length(models)) {
   predicted_effort_2020 <- models[[i]][1] + models[[i]][2]*3
   prediction_data <- rbind(prediction_data, predicted_effort_2020)
   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
 }
-```
 
-Combine the predicted 2020 fishing effort data with the actual 2020 fishing effort data into a single dataframe to compare by country. We can even add a column that explicitly states whether that country increased or decreased their fishing effort in 2020 relative to their trend leading up to 2020.
-
-```{r}
 # figure out which countries were used in the for loop so we can get the actual 2020 effort data for those countries only
 countries_clean_unique <- countries_clean %>% 
   group_by(flag_gfw) %>%
@@ -170,7 +174,12 @@ comparison_2020_pos <- comparison_2020_pos %>%
     difference < 0 ~ "fished LESS than trend",
     difference > 0 ~ "fished MORE than trend"))
 ```
+
 ### Plotting Actual Fishing Effort versus Predicted Fishing Effort for Malaysia
+
+Malayasia 
+
+We can make a country-specific fishing effort plot by filtering our *actual* fishing effort data to just that country, appending the *predicted* 2020 fishing effort data for that country that we produced through
 
 ```{r}
 # filter fishing effort and yearly means from the original data 
@@ -359,8 +368,6 @@ This color-coded table reveals that 85% of the countries included in this analys
 Anticamara, J. A., R. Watson, A. Gelchu, and D. Pauly. “Global Fishing Effort (1950–2010): Trends, Gaps, and Implications.” Fisheries Research 107, no. 1 (2011): 131–36. https://doi.org/10.1016/j.fishres.2010.10.016.\
 - [First Assessment of the Impacts of the COVID-19 Pandemic on Global Marine Recreational Fisheries.](https://www.frontiersin.org/articles/10.3389/fmars.2021.735741/full):\
 Pita, Pablo, Gillian B. Ainsworth, Bernardino Alba, Antônio B. Anderson, Manel Antelo, Josep Alós, Iñaki Artetxe, et al. “First Assessment of the Impacts of the COVID-19 Pandemic on Global Marine Recreational Fisheries.” Frontiers in Marine Science 8 (2021): 1533. https://doi.org/10.3389/fmars.2021.735741.
-
-
 
 #### Acknowledgements:
 

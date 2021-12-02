@@ -406,20 +406,24 @@ ggplot(data = chl_data, aes(x = year, y = mean_effort, color = year)) +
    scale_y_continuous(breaks = seq(min_y_chl, max_y_chl, by = 10))
 ```
 
-Use the `sapply()` function to iterate through all the countries and run a linear model. Then, concatenate those linear model summaries using `lapply()`.
+Use the `sapply()` function to iterate through all the countries and run a linear model.
 
 ```{r}
 # transferred
 
-countries_clean %>% 
+penguin <- countries_clean %>% 
   group_by(flag_gfw) %>% 
   do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+
+penguin$X.Intercept.[1] + penguin$year.1[1]
+penguin$X.Intercept.[1]
+penguin$year.1[1]
 
 # try to adjust the code that worked earlier to be like this code
 models <- sapply(unique(as.character(countries_clean$flag_gfw)),
                  function(country)as.numeric(coef(lm(mean_effort~year, countries_clean, subset = (flag_gfw == country)))),
                  simplify = FALSE, USE.NAMES = TRUE)
-models[[4]]
+#models[[4]]
 # retunrs just that country's coefficients
 #models$ARG[1]
 #countries_lm_summaries <- lapply(models, summary)
@@ -437,6 +441,36 @@ for (i in 1:length(models)) {
   print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
 }
 ```
+
+```{r}
+# try multiplying the by 3 with parenthesis
+
+#(models[[1]][1] + models[[1]][2])
+
+#models[[1]]
+
+#models[[1]][2]
+#predicted_effort_2020[1] = model[[1]]
+
+# penguin <- countries_clean %>% 
+#   group_by(flag_gfw) %>% 
+#   do(data.frame(., as.list(coef(lm(mean_effort~year, .)))))
+# 
+# penguin$X.Intercept.[1] + penguin$year.1[1]
+# penguin$X.Intercept.[1]
+# penguin$year.1[1]
+
+prediction_data_test = NULL;
+for (i in 1:length(models)) {
+  predicted_effort_2020 <- penguin$X.Intercept.[i] + penguin$year.1[i]
+  #predicted_effort_2020[i+1] <- (models[[i]][1] + (models[[i]][2])*3)
+  print(predicted_effort_2020)
+  prediction_data <- rbind(prediction_data, predicted_effort_2020)
+  #print(paste0("In 2020, the predicted fishing hours is ", predicted_effort_2020))
+}
+```
+
+
 Combine the predicted 2020 fishing effort data with the actual 2020 fishing effort data to compare by country.
 
 ```{r}
@@ -685,6 +719,19 @@ good_bad_table
 gtsave(data = good_bad_table, filename = "good_bad_table.png", path = here())
 ```
 
+Check the number of countries that inc vs decreased their effort relative to their trend
+
+```{r}
+num_inc <- comparison_rearranged_simplified %>% 
+  filter(change_direc == "fished MORE than trend")
+
+nrow(num_inc)
+
+num_dec <- comparison_rearranged_simplified %>% 
+  filter(change_direc == "fished LESS than trend")
+
+nrow(num_dec)
+```
 
 
 
