@@ -54,6 +54,10 @@ names_merged <- names_merged %>%
 
 # merge the tree data with world data
 fishing_map_data <- left_join(world_data, names_merged)
+
+# save the data as a csv, this did NOT work with write.csv, so the underscore is important
+#write_csv(fishing_map_data,"data/fishing_map_data.csv")
+
 ```
 
 ```{r}
@@ -100,7 +104,7 @@ fishing_map_data <- left_join(world_data, names_merged)
 # #tmap_save(tree_map, "tree_map.png")
 # 
 # fishing_effort_map
-# ```
+```
 
 # BEST MAP SO FAR
 try using diff color scale, style = quantile:
