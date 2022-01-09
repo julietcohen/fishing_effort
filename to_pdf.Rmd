@@ -37,6 +37,8 @@ library(tidyverse)
 library(lubridate)
 # gt helps make beautiful tables to summarize our data
 library(gt)
+library(broom)
+library(here)
 ```
 
 ```{r}

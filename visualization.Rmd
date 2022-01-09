@@ -1,0 +1,260 @@
+---
+title: "visualization"
+author: "Juliet"
+date: "1/9/2022"
+output: html_document
+---
+
+Note: Run the to_pdf.Rmd to import the data
+
+### Try mapping the countries using tmap
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(RColorBrewer)
+library(rgeos)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(sp)
+library(spData)
+#library(spDataLarge)
+library(tidyverse)
+library(janitor)
+library(tmap)
+library(paletteer)
+library(readr)
+library(here)
+```
+
+```{r}
+# Load trees dataset into environment
+#tree_data <- read_csv("https://raw.githubusercontent.com/owid/owid-datasets/master/datasets/Tree%20density%20(Crowther%20et%20al.%202015)/Tree%20density%20(Crowther%20et%20al.%202015).csv") %>% 
+#  clean_names()
+
+# Load world dataset from 'spData' package into environment
+world_data <- world %>% 
+  clean_names()
+```
+
+Add fishing data to the world dataset to map it!
+
+```{r}
+# import the new csv with long names and codes
+key_df <- read_csv(here("data/countries_codes_and_coordinates.csv")) %>% 
+  clean_names()
+
+```
+
+```{r}
+# match country name column titles in each dataset in order to join
+#colnames(comparison_rearranged_simplified)[which(names(comparison_rearranged_simplified) == "Alpha-3-Code")] <- "alpha_3_code"
+
+# merge the names data to get full country names on prediction data set before combining fishing predictions with world data
+names_merged <- left_join(comparison_rearranged_simplified, key_df)
+
+names_merged <- names_merged %>% 
+  rename(name_long = country)
+
+# merge the tree data with world data
+fishing_map_data <- left_join(world_data, names_merged)
+```
+
+```{r}
+#library(tmap)
+
+# create legend title
+legend_title = expression("Difference in Fishing Hours: Actual 2020 Fishing Hours - Predicted 2020 Fishing Hours")
+
+# create map credits text
+map_credits = expression("Map created by Juliet Cohen        ")
+
+# make a world map of tree density
+fishing_effort_map = tm_shape(fishing_map_data) + 
+  tm_borders() + 
+  tm_fill(col = "difference_a_minus_p", 
+          title = legend_title,
+          textNA = "No data",
+          colorNA = "gray65",
+          style = "fixed",
+          breaks = c(-30464, -25000, -17000, -10000, -6000, -3000, 0, 500, 1958),
+          # step 1 to reverse color assignment order:
+          palette = "seq",
+          legend.format = list(text.align = "right"),
+          legend.reverse = TRUE,
+          auto.palette.mapping=FALSE, n=6) +
+  tm_layout(main.title = "2020 Fishing Hours by Country, Relative to Predicted Fishing Hours Based on Historical Trend", 
+            main.title.position = "left",
+            main.title.size = 1.5,
+            bg.color = "lightblue3",
+            # step 2 to reverse color assignment order:
+            aes.palette = list(seq = "-RdYlGn")) +
+  tm_compass(type = "8star",
+             size = 2.5,
+             position = c("left", "center")) +
+  tm_credits(text = map_credits,
+             size = 0.5,
+             position = c("right", "bottom"),
+             align = "right") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "right",
+            frame.double.line = TRUE)
+
+# save tree map as a png
+#tmap_save(tree_map, "tree_map.png")
+
+fishing_effort_map
+```
+
+# BEST MAP SO FAR
+try using diff color scale, style = quantile:
+```{r}
+# create legend title
+legend_title = expression("Difference in 2020 Fishing Hours: Actual - Predicted")
+
+# create map credits text
+map_credits = expression("Map created by Juliet Cohen        ")
+
+main_title = "2020 Fishing Hours by Country, Relative to Predicted Fishing Hours Based on Historical Trend"
+
+# make a world map of tree density
+fishing_effort_map = tm_shape(fishing_map_data) + 
+  tm_borders() + 
+  tm_fill(col = "difference_a_minus_p", 
+          title = legend_title,
+          textNA = "No data",
+          colorNA = "gray65",
+          style = "quantile",
+          #breaks = c(-30464, -25000, -17000, -10000, -6000, -3000, 0, 500, 1958),
+          # step 1 to reverse color assignment order:
+          palette = "seq",
+          legend.format = list(text.align = "right"),
+          legend.reverse = TRUE) +
+  tm_layout(main.title = main_title, 
+            main.title.position = "left",
+            main.title.size = 0.9,
+            bg.color = "lightblue3",
+            # step 2 to reverse color assignment order:
+            aes.palette = list(seq = "-RdYlGn")) +
+  tm_compass(type = "8star",
+             size = 2.5,
+             position = c("left", "center")) +
+  tm_credits(text = map_credits,
+             size = 0.5,
+             position = c("right", "bottom"),
+             align = "right") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "right",
+            frame.double.line = TRUE,
+            legend.title.size=0.7)
+
+# save tree map as a png
+#tmap_save(tree_map, "tree_map.png")
+
+fishing_effort_map
+```
+try using a continuous scale:
+```{r}
+# create legend title
+legend_title = expression("Difference in Fishing Hours: Actual 2020 Fishing Hours - Predicted 2020 Fishing Hours")
+
+# create map credits text
+map_credits = expression("Map created by Juliet Cohen        ")
+
+main_title = "2020 Fishing Hours by Country, Relative to Predicted Fishing Hours Based on Historical Trend"
+
+# make a world map of tree density
+fishing_effort_map = tm_shape(fishing_map_data) + 
+  tm_borders() + 
+  tm_fill(col = "difference_a_minus_p", 
+          title = legend_title,
+          textNA = "No data",
+          colorNA = "gray65",
+          style = "cont",
+          #breaks = c(-30464, -25000, -17000, -10000, -6000, -3000, 0, 500, 1958),
+          # step 1 to reverse color assignment order:
+          palette = "seq",
+          legend.format = list(text.align = "right"),
+          legend.reverse = TRUE) +
+  tm_layout(main.title = main_title, 
+            main.title.position = "left",
+            main.title.size = 1.5,
+            bg.color = "lightblue3",
+            # step 2 to reverse color assignment order:
+            aes.palette = list(seq = "-RdYlGn")) +
+  tm_compass(type = "8star",
+             size = 2.5,
+             position = c("left", "center")) +
+  tm_credits(text = map_credits,
+             size = 0.5,
+             position = c("right", "bottom"),
+             align = "right") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "right",
+            frame.double.line = TRUE)
+
+# save tree map as a png
+#tmap_save(tree_map, "tree_map.png")
+
+fishing_effort_map
+```
+Try using another continuous scale = order
+```{r}
+# create legend title
+legend_title = expression("Difference in Fishing Hours: Actual 2020 Fishing Hours - Predicted 2020 Fishing Hours")
+
+# create map credits text
+map_credits = expression("Map created by Juliet Cohen        ")
+
+main_title = "2020 Fishing Hours by Country, Relative to Predicted Fishing Hours Based on Historical Trend"
+
+# make a world map of tree density
+fishing_effort_map = tm_shape(fishing_map_data) + 
+  tm_borders() + 
+  tm_fill(col = "difference_a_minus_p", 
+          title = legend_title,
+          textNA = "No data",
+          colorNA = "gray65",
+          style = "cont",
+          #breaks = c(-30464, -25000, -17000, -10000, -6000, -3000, 0, 500, 1958),
+          # step 1 to reverse color assignment order:
+          palette = "seq",
+          legend.format = list(text.align = "right"),
+          legend.reverse = TRUE) +
+  tm_layout(main.title = main_title, 
+            main.title.position = "left",
+            main.title.size = 1.5,
+            bg.color = "lightblue3",
+            # step 2 to reverse color assignment order:
+            aes.palette = list(seq = "-RdYlGn")) +
+  tm_compass(type = "8star",
+             size = 2.5,
+             position = c("left", "center")) +
+  tm_credits(text = map_credits,
+             size = 0.5,
+             position = c("right", "bottom"),
+             align = "right") +
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "right",
+            frame.double.line = TRUE)
+
+# save tree map as a png
+#tmap_save(tree_map, "tree_map.png")
+
+fishing_effort_map
+```
+
+style options found here: https://geocompr.github.io/post/2019/tmap-color-scales/
+
+
+
+
+
+
+
+
+
+
+
+
+
