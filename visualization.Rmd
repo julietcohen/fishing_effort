@@ -51,13 +51,13 @@ key_df <- read_csv(here("data/countries_codes_and_coordinates.csv")) %>%
 #colnames(comparison_rearranged_simplified)[which(names(comparison_rearranged_simplified) == "Alpha-3-Code")] <- "alpha_3_code"
 
 # merge the names data to get full country names on prediction data set before combining fishing predictions with world data
-names_merged <- left_join(comparison_rearranged_simplified, key_df)
+#names_merged <- left_join(comparison_rearranged_simplified, key_df)
 
-names_merged <- names_merged %>% 
-  rename(name_long = country)
+#names_merged <- names_merged %>% 
+#  rename(name_long = country)
 
 # merge the tree data with world data
-fishing_map_data <- left_join(world_data, names_merged)
+#fishing_map_data <- left_join(world_data, names_merged)
 ```
 
 ```{r}
@@ -113,7 +113,7 @@ try using diff color scale, style = quantile:
 legend_title = expression("Difference in 2020 Fishing Hours: Actual - Predicted")
 
 # create map credits text
-map_credits = expression("Map created by Juliet Cohen        ")
+color_explanation = expression("Darker green countries represent those that\n reduced their fishing hours during the Covid-19\n pandemic, and lighter countries represent\n those that increased their fishing hours\n during the Coivid-19 pandemic.")
 
 main_title = "2020 Fishing Hours by Country, Relative to Predicted Fishing Hours Based on Historical Trend"
 
@@ -129,7 +129,9 @@ fishing_effort_map = tm_shape(fishing_map_data) +
           # step 1 to reverse color assignment order:
           palette = "seq",
           legend.format = list(text.align = "right"),
-          legend.reverse = TRUE) +
+          legend.reverse = FALSE,
+          auto.palette.mapping=FALSE,
+          n=5) +
   tm_layout(main.title = main_title, 
             main.title.position = "left",
             main.title.size = 0.9,
@@ -137,19 +139,20 @@ fishing_effort_map = tm_shape(fishing_map_data) +
             # step 2 to reverse color assignment order:
             aes.palette = list(seq = "-RdYlGn")) +
   tm_compass(type = "8star",
-             size = 2.5,
-             position = c("left", "center")) +
-  tm_credits(text = map_credits,
-             size = 0.5,
-             position = c("right", "bottom"),
-             align = "right") +
+             size = 2,
+             position = c("right", "bottom")) +
+  tm_credits(text = color_explanation,
+             size = 0.4,
+             position = c(0.01, 0.2),
+             #position = c("left", "center"),
+             align = "left") +
   tm_layout(legend.outside = TRUE,
             legend.outside.position = "right",
             frame.double.line = TRUE,
             legend.title.size=0.7)
 
 # save tree map as a png
-#tmap_save(tree_map, "tree_map.png")
+tmap_save(fishing_effort_map, "pictures/fishing_effort_map.png")
 
 fishing_effort_map
 ```
